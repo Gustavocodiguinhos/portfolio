@@ -1,59 +1,40 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import client, { urlFor, getFileUrl } from '../lib/sanity'
 import './Projects.css'
 
 function Projects() {
   const [activeFilter, setActiveFilter] = useState('all')
+  const [projects, setProjects] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selectedProject, setSelectedProject] = useState(null)
 
-  const projects = [
-    {
-      id: 1,
-      title: 'Campanha Brand X',
-      category: 'design',
-      description: 'Identidade visual e materiais para campanha de lançamento',
-      image: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=600&h=400&fit=crop',
-      color: '#c9a96e',
-    },
-    {
-      id: 2,
-      title: 'Vídeo Institucional',
-      category: 'video',
-      description: 'Produção de vídeo corporativo para empresa de tecnologia',
-      image: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=600&h=400&fit=crop',
-      color: '#dbb978',
-    },
-    {
-      id: 3,
-      title: 'App Mobile Design',
-      category: 'design',
-      description: 'UI/UX design para aplicativo de fitness',
-      image: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&h=400&fit=crop',
-      color: '#c9a96e',
-    },
-    {
-      id: 4,
-      title: 'After Movie Festival',
-      category: 'video',
-      description: 'Edição de after movie para festival de música',
-      image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&h=400&fit=crop',
-      color: '#dbb978',
-    },
-    {
-      id: 5,
-      title: 'Pack de Redes Sociais',
-      category: 'design',
-      description: 'Templates e posts para redes sociais de marca de moda',
-      image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&h=400&fit=crop',
-      color: '#c9a96e',
-    },
-    {
-      id: 6,
-      title: 'Videoclipe Musical',
-      category: 'video',
-      description: 'Direção e edição de videoclipe para artista independente',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&h=400&fit=crop',
-      color: '#dbb978',
-    },
-  ]
+  useEffect(() => {
+    const query = `*[_type == "project"] | order(order asc) {
+      _id,
+      title,
+      slug,
+      category,
+      description,
+      thumbnail,
+      videoUrl,
+      videoFile,
+      externalUrl,
+      tags,
+      featured
+    }`
+
+    client
+      .fetch(query)
+      .then((data) => {
+        console.log('Projetos carregados do Sanity:', data)
+        setProjects(data)
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.error('Erro ao buscar projetos:', err)
+        setLoading(false)
+      })
+  }, [])
 
   const filters = [
     { label: 'Todos', value: 'all' },
@@ -65,6 +46,18 @@ function Projects() {
     activeFilter === 'all'
       ? projects
       : projects.filter((p) => p.category === activeFilter)
+
+  const getYouTubeEmbed = (url) => {
+    if (!url) return null
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([^&?#]+)/)
+    return match ? `https://www.youtube.com/embed/${match[1]}` : null
+  }
+
+  const getVimeoEmbed = (url) => {
+    if (!url) return null
+    const match = url.match(/vimeo\.com\/(\d+)/)
+    return match ? `https://player.vimeo.com/video/${match[1]}` : null
+  }
 
   return (
     <section id="projetos" className="projects">
@@ -87,29 +80,92 @@ function Projects() {
           ))}
         </div>
 
-        <div className="projects-grid">
-          {filteredProjects.map((project) => (
-            <div key={project.id} className="project-card">
-              <div className="project-image">
-                <img src={project.image} alt={project.title} />
-                <div
-                  className="project-overlay"
-                  style={{
-                    background: `linear-gradient(135deg, ${project.color}cc, ${project.color}99)`,
-                  }}
-                >
-                  <span className="project-category">
-                    {project.category === 'design' ? 'Design' : 'Vídeo'}
-                  </span>
-                  <h3 className="project-title">{project.title}</h3>
-                  <p className="project-description">{project.description}</p>
-                  <button className="project-btn">Ver Detalhes</button>
+        {loading ? (
+          <p style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '4rem 0' }}>
+            Carregando projetos...
+          </p>
+        ) : (
+          <div className="projects-grid">
+            {filteredProjects.map((project) => (
+              <div
+                key={project._id}
+                className="project-card"
+                onClick={() => setSelectedProject(project)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="project-image">
+                  {project.thumbnail && (
+                    <img
+                      src={urlFor(project.thumbnail).width(600).height(400).fit('crop').url()}
+                      alt={project.title}
+                    />
+                  )}
+                  <div className="project-overlay">
+                    <span className="project-category">
+                      {project.category === 'design' ? 'Design' : 'Vídeo'}
+                    </span>
+                    <h3 className="project-title">{project.title}</h3>
+                    <p className="project-description">{project.description}</p>
+                    <button className="project-btn">Ver Projeto</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      {selectedProject && (
+        <div className="project-modal" onClick={() => setSelectedProject(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setSelectedProject(null)}>
+              ✕
+            </button>
+            <h3>{selectedProject.title}</h3>
+            <p className="modal-category">
+              {selectedProject.category === 'design' ? 'Design' : 'Vídeo'}
+            </p>
+
+            {selectedProject.videoUrl && getYouTubeEmbed(selectedProject.videoUrl) && (
+              <iframe
+                src={getYouTubeEmbed(selectedProject.videoUrl)}
+                className="modal-video"
+                allowFullScreen
+                title={selectedProject.title}
+              />
+            )}
+            {selectedProject.videoUrl && getVimeoEmbed(selectedProject.videoUrl) && (
+              <iframe
+                src={getVimeoEmbed(selectedProject.videoUrl)}
+                className="modal-video"
+                allowFullScreen
+                title={selectedProject.title}
+              />
+            )}
+            {selectedProject.videoFile && (
+              <video
+                src={getFileUrl(selectedProject.videoFile)}
+                controls
+                className="modal-video"
+              />
+            )}
+
+            <p className="modal-description">{selectedProject.description}</p>
+
+            {selectedProject.externalUrl && (
+              <a
+                href={selectedProject.externalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="project-btn"
+                style={{ display: 'inline-block', marginTop: '1rem' }}
+              >
+                Ver Externamente
+              </a>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   )
 }
