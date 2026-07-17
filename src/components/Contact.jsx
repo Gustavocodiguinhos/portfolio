@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { sendContactMessage } from '../lib/supabase'
 import './Contact.css'
 
 function Contact() {
@@ -10,16 +11,26 @@ function Contact() {
   })
 
   const [submitted, setSubmitted] = useState(false)
+  const [sending, setSending] = useState(false)
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    setSubmitted(true)
-    setTimeout(() => setSubmitted(false), 3000)
-    setFormData({ name: '', email: '', subject: '', message: '' })
+    setSending(true)
+    try {
+      await sendContactMessage(formData)
+      setSubmitted(true)
+      setFormData({ name: '', email: '', subject: '', message: '' })
+      setTimeout(() => setSubmitted(false), 3000)
+    } catch (err) {
+      console.error('Erro ao enviar mensagem:', err)
+      alert('Erro ao enviar mensagem. Tente novamente.')
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -120,8 +131,8 @@ function Contact() {
               required
             ></textarea>
           </div>
-          <button type="submit" className="submit-btn">
-            {submitted ? 'Mensagem Enviada!' : 'Enviar Mensagem'}
+          <button type="submit" className="submit-btn" disabled={sending}>
+            {sending ? 'Enviando...' : submitted ? 'Mensagem Enviada!' : 'Enviar Mensagem'}
           </button>
         </form>
       </div>

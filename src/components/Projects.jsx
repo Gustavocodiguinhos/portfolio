@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import client, { urlFor, getFileUrl } from '../lib/sanity'
+import { getProjects } from '../lib/supabase'
 import './Projects.css'
 
 function Projects() {
@@ -9,24 +9,8 @@ function Projects() {
   const [selectedProject, setSelectedProject] = useState(null)
 
   useEffect(() => {
-    const query = `*[_type == "project"] | order(order asc) {
-      _id,
-      title,
-      slug,
-      category,
-      description,
-      thumbnail,
-      videoUrl,
-      videoFile,
-      externalUrl,
-      tags,
-      featured
-    }`
-
-    client
-      .fetch(query)
+    getProjects()
       .then((data) => {
-        console.log('Projetos carregados do Sanity:', data)
         setProjects(data)
         setLoading(false)
       })
@@ -88,15 +72,15 @@ function Projects() {
           <div className="projects-grid">
             {filteredProjects.map((project) => (
               <div
-                key={project._id}
+                key={project.id}
                 className="project-card"
                 onClick={() => setSelectedProject(project)}
                 style={{ cursor: 'pointer' }}
               >
                 <div className="project-image">
-                  {project.thumbnail && (
+                  {project.thumbnail_url && (
                     <img
-                      src={urlFor(project.thumbnail).width(600).height(400).fit('crop').url()}
+                      src={project.thumbnail_url}
                       alt={project.title}
                     />
                   )}
@@ -126,25 +110,25 @@ function Projects() {
               {selectedProject.category === 'design' ? 'Design' : 'Vídeo'}
             </p>
 
-            {selectedProject.videoUrl && getYouTubeEmbed(selectedProject.videoUrl) && (
+            {selectedProject.video_url && getYouTubeEmbed(selectedProject.video_url) && (
               <iframe
-                src={getYouTubeEmbed(selectedProject.videoUrl)}
+                src={getYouTubeEmbed(selectedProject.video_url)}
                 className="modal-video"
                 allowFullScreen
                 title={selectedProject.title}
               />
             )}
-            {selectedProject.videoUrl && getVimeoEmbed(selectedProject.videoUrl) && (
+            {selectedProject.video_url && getVimeoEmbed(selectedProject.video_url) && (
               <iframe
-                src={getVimeoEmbed(selectedProject.videoUrl)}
+                src={getVimeoEmbed(selectedProject.video_url)}
                 className="modal-video"
                 allowFullScreen
                 title={selectedProject.title}
               />
             )}
-            {selectedProject.videoFile && (
+            {selectedProject.video_file_url && (
               <video
-                src={getFileUrl(selectedProject.videoFile)}
+                src={selectedProject.video_file_url}
                 controls
                 className="modal-video"
               />
@@ -152,9 +136,9 @@ function Projects() {
 
             <p className="modal-description">{selectedProject.description}</p>
 
-            {selectedProject.externalUrl && (
+            {selectedProject.external_url && (
               <a
-                href={selectedProject.externalUrl}
+                href={selectedProject.external_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="project-btn"
